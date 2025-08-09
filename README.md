@@ -12,17 +12,20 @@ The process flow diagram utilized in Collection 10.0 of the Caatinga biome is de
 <p align="center">
   <img src="images/fluxograma_reduzir.png" alt="Fluxograma otimizado de processos" width="200"/>
 </p>
-Figure 1. Simplified general flowchart.
+<p align="center">  Figure 1. Simplified general flowchart. </p>
+
+
+
 </br>
 For further details some improvements were added which will be described below (Figure 2).
+
+
 </br>
 
 <p align="center">
   <img src="images/fluxograma.png" alt="Fluxograma de passos para o mapeamento da serie de cobertura" width="500"/>
 </p>
-Figure 2. Classification process of MapBiomas Collection 10.0 (1985-2024) in the Caatinga biome.
-
-
+<p align="center"> Figure 2. Classification process of MapBiomas Collection 10.0 (1985-2024) in the Caatinga biome. </p>
 
 
 ## Workflow Stages
@@ -32,6 +35,11 @@ The workflow is organized into four major stages, each contained in its respecti
 ### 1. Sample Data Collection (`src/samples_process`)
 
 The collection of sample data (ROIs - Regions of Interest) forms the foundation for training the models. To optimize the process over a large area like the Caatinga, the biome was divided into **756 grids**, which are based on **49 hydrographic regions**.
+
+<p align="center">
+  <img src="images/wattershed_basin_classification.png" alt="Watershed basins used in the classification and sampling" width="300"/>
+</p>
+<p align="center">  Figure 3. Watershed basins used in the classification and sampling of the MapBiomas LULC collections for Caatinga biome.  </p>
 
 The collection areas are refined through a filter that uses four exclusion layers to ensure sample quality, removing areas with deforestation alerts, burn scars, and inconsistencies between different data collections. Finally, the data collected from the grids is consolidated and saved as assets organized by hydrographic basin and year.
 
@@ -49,6 +57,8 @@ We use a Recursive Feature Elimination with Cross-Validation (**REFCV**, impleme
 * `featureselection_functionsV2.py`
 * `Feature_Selection_ROIs_Col10.ipynb`
 * `correction_class_samples_downsampled.py`
+
+
 
 ### 3. Hyperparameter Tuning (`tuningHiperparameters`)
 
