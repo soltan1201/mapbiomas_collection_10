@@ -9,11 +9,11 @@ The project is divided into four main stages: sample collection, feature analysi
 The diagram below illustrates the complete sequence of processes, from raw data collection to the generation of the final classified map.
 
 <p align="center">
-  <img src="src/images/fluxograma_reduzir.png" alt="Fluxograma otimizado de processos" width="200"/>
+  <img src="images/fluxograma_reduzir.png" alt="Fluxograma otimizado de processos" width="200"/>
 </p>
 
 <p align="center">
-  <img src="src/images/fluxograma.png" alt="Fluxograma de passos para o mapeamento da serie de cobertura" width="500"/>
+  <img src="images/fluxograma.png" alt="Fluxograma de passos para o mapeamento da serie de cobertura" width="500"/>
 </p>
 
 ## Workflow Stages
