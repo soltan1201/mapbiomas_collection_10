@@ -6,15 +6,24 @@ The project is divided into four main stages: sample collection, feature analysi
 
 ## Methodological Flowchart
 
-The diagram below illustrates the complete sequence of processes, from raw data collection to the generation of the final classified map.
+The process flow diagram utilized in Collection 10.0 of the Caatinga biome is depicted in Figure 1. This flowchart combines a few of each node's smaller procedures that have been improved in this most recent collection. Generally speaking, the following procedures are involved in creating the land cover and land use maps in the Caatinga Biome: Data input, sample gathering, feature selection, hyperparameter tuning, models of classification, post-classification filters, techniques for validation and visual inspection, and integration of outcomes with MapBiomas.
+
 
 <p align="center">
   <img src="images/fluxograma_reduzir.png" alt="Fluxograma otimizado de processos" width="200"/>
 </p>
+Figure 1. Simplified general flowchart.
+</br>
+For further details some improvements were added which will be described below (Figure 2).
+</br>
 
 <p align="center">
   <img src="images/fluxograma.png" alt="Fluxograma de passos para o mapeamento da serie de cobertura" width="500"/>
 </p>
+Figure 2. Classification process of MapBiomas Collection 10.0 (1985-2024) in the Caatinga biome.
+
+
+
 
 ## Workflow Stages
 
