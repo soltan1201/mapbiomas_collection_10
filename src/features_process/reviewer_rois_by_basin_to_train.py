@@ -1,98 +1,154 @@
-#!/usr/bin/env python2
+#!/usr/bin/python
 # -*- coding: utf-8 -*-
 
 '''
-#SCRIPT DE CLASSIFICACAO POR BACIA
-#Produzido por Geodatin - Dados e Geoinformacao
-#DISTRIBUIDO COM GPLv2
+# SCRIPT DE VERIFICAÇÃO DE AMOSTRAS
+# Produzido por Geodatin - Dados e Geoinformacao
+# DISTRIBUIDO COM GPLv2
 '''
-
+# --------------------------------------------------------------------------------#
+# Bloco 1: Importação de Módulos e Inicialização do Earth Engine                   #
+# Descrição: Este bloco importa as bibliotecas necessárias, configura o            #
+# ambiente para encontrar módulos locais e inicializa a conexão com a API          #
+# do Google Earth Engine usando uma conta pré-configurada.                         #
+# --------------------------------------------------------------------------------#
 import ee
-import os 
+import os
 import sys
-# import json
 from pathlib import Path
-# import arqParametros as arqParams 
 import collections
-collections.Callable = collections.abc.Callable
+collections.Callable = collections.abc.Callable # Garante compatibilidade com novas versões do Python
 
+# Adiciona o diretório pai ao path do sistema para importar módulos customizados
 pathparent = str(Path(os.getcwd()).parents[0])
 sys.path.append(pathparent)
 print("parents ", pathparent)
 from configure_account_projects_ee import get_current_account, get_project_from_account
 from gee_tools import *
+
+# Define e inicializa o projeto GEE a ser utilizado
 projAccount = get_current_account()
 print(f"projetos selecionado >>> {projAccount} <<<")
 
 try:
-    ee.Initialize(project= projAccount)
+    ee.Initialize(project=projAccount)
     print('The Earth Engine package initialized successfully!')
 except ee.EEException as e:
     print('The Earth Engine package failed to initialize!')
 except:
     print("Unexpected error:", sys.exc_info()[0])
     raise
-# sys.setrecursionlimit(1000000000)
-###################################################################################################
-###  aplicar o scripts só para verificar se todas as amostras para anos e bacias estão prontas ####
-###################################################################################################
 
-def GetPolygonsfromFolder(dict_idasset):    
+# --------------------------------------------------------------------------------#
+# Bloco 2: Propósito do Script e Funções de Verificação                            #
+# Descrição: O objetivo deste script é diagnosticar e verificar a integridade      #
+# das coleções de amostras (ROIs), imprimindo um histograma de classes para        #
+# cada bacia e ano, garantindo que os dados estão prontos para as próximas         #
+# etapas. As funções abaixo implementam diferentes estratégias de leitura.         #
+# --------------------------------------------------------------------------------#
+
+def GetPolygonsfromFolder(dict_idasset):
+    """Lista todos os asset IDs dentro de uma pasta específica no GEE.
+
+    Args:
+        dict_idasset (dict): Um dicionário contendo o ID da pasta do GEE,
+                             no formato {'id': 'path/to/folder'}.
+
+    Returns:
+        list[str]: Uma lista com os caminhos completos de cada asset na pasta.
+    """
     getlistPtos = ee.data.getList(dict_idasset)
     list_idasset = []
-
-    for idAsset in getlistPtos:         
+    for idAsset in getlistPtos:
         path_ = idAsset.get('id')
         list_idasset.append(path_)
-    
-    return  list_idasset
+    return list_idasset
 
 def reviewer_samples_byYear(dir_asset, nbasin, nlistYears):
-    for cc, nyear in enumerate(nlistYears[:]): 
-        nameFeatROIs =  f"{nbasin}_{nyear}_cd" 
-        idAsset = os.path.join(dir_asset, nameFeatROIs)
-        feat_tmp = ee.FeatureCollection(idAsset)
-        print(f"#{cc} >> {nyear} : ", feat_tmp.aggregate_histogram('class').getInfo())
+    """Verifica amostras assumindo que cada ano é um asset separado.
 
+    Esta função itera sobre uma lista de anos, constrói o nome do asset para
+    cada combinação de bacia/ano, carrega a FeatureCollection e imprime
+    um histograma da propriedade 'class'.
+
+    Args:
+        dir_asset (str): O caminho da pasta no GEE que contém os assets anuais.
+        nbasin (str): O ID da bacia hidrográfica a ser verificada.
+        nlistYears (list[int]): A lista de anos a serem iterados.
+    """
+    for cc, nyear in enumerate(nlistYears[:]):
+        nameFeatROIs = f"{nbasin}_{nyear}_cd"
+        idAsset = os.path.join(dir_asset, nameFeatROIs)
+        try:
+            feat_tmp = ee.FeatureCollection(idAsset)
+            print(f"#{cc} >> {nyear} : ", feat_tmp.aggregate_histogram('class').getInfo())
+        except Exception as e:
+            print(f"#{cc} >> {nyear} : ERRO ao carregar o asset {idAsset} - {e}")
 
 def reviewer_samples_byFC(dir_asset, nbasin, nlistYears):
-    nameFeatROIs =  f"rois_fromGrade_{nbasin}" 
-    idAsset = os.path.join(dir_asset, nameFeatROIs)
-    featB = ee.FeatureCollection(idAsset)
-    for cc, nyear in enumerate(nlistYears[:]): 
-        feat_tmp = featB.filter(ee.Filter.eq('year', nyear))
-        print(f"#{cc} >> {nyear} : ", feat_tmp.aggregate_histogram('class').getInfo())
+    """Verifica amostras de um único asset que contém todos os anos.
 
-param = {     
-    # 'asset_sample_rev': 'projects/mapbiomas-workspace/AMOSTRAS/col10/CAATINGA/ROIs/ROIs_cleaned_DS_v4corrCC',
+    Esta função carrega um único asset por bacia e, em seguida, itera sobre
+    a lista de anos, filtrando a coleção para cada ano e imprimindo o
+    histograma da propriedade 'class'.
+
+    Args:
+        dir_asset (str): O caminho da pasta no GEE que contém o asset da bacia.
+        nbasin (str): O ID da bacia, usado para construir o nome do asset.
+        nlistYears (list[int]): A lista de anos para filtrar e verificar.
+    """
+    nameFeatROIs = f"rois_fromGrade_{nbasin}"
+    idAsset = os.path.join(dir_asset, nameFeatROIs)
+    try:
+        featB = ee.FeatureCollection(idAsset)
+        for cc, nyear in enumerate(nlistYears[:]):
+            feat_tmp = featB.filter(ee.Filter.eq('year', nyear))
+            print(f"#{cc} >> {nyear} : ", feat_tmp.aggregate_histogram('class').getInfo())
+    except Exception as e:
+        print(f"ERRO ao carregar o asset da bacia {idAsset} - {e}")
+
+# --------------------------------------------------------------------------------#
+# Bloco 3: Execução Principal do Script (Main)                                     #
+# Descrição: Este bloco define os parâmetros de execução, determina a              #
+# estratégia de verificação (um asset por ano ou um por bacia) e, em seguida,      #
+# itera sobre as bacias para executar a verificação.                               #
+# --------------------------------------------------------------------------------#
+
+# Parâmetros de execução
+param = {
     'asset_sample_rev': 'projects/mapbiomas-workspace/AMOSTRAS/col10/CAATINGA/ROIs/ROIs_cleaned_downsamplesv4C',
     'yearInicial': 1985,
     'yearFinal': 2024,
 }
 
-# nameBacias = [
-#     '7754', '7691', '7581', '7625', '7584', '751', '7614', 
-#     '752', '7616', '745', '7424', '773', '7612', '7613', 
-#     '7618', '7561', '755', '7617', '7564', '761111','761112', 
-#     '7741', '7422', '76116', '7761', '7671', '7615', '7411', 
-#     '7764', '757', '771', '7712',  '766', '7746', '753', '764', 
-#     '7541', '7721', '772', '7619', '7443', '765', '7544', '7438', 
-#     '763', '7591', '7592', '7622', '746'
-# ]
+# Lista de bacias a serem verificadas
 nameBacias = [
-    '765','7544', '7541'
+    '765', '7544', '7541'
 ]
+
+# Gera a lista de anos e lista os assets na pasta de destino
 listYears = [k for k in range(param['yearInicial'], param['yearFinal'] + 1)]
 list_idassets = GetPolygonsfromFolder({'id': param['asset_sample_rev']})
+
+# Decide a estratégia de revisão com base no número de assets encontrados
 filtrarFC = True
 if len(list_idassets) > len(nameBacias):
+    # Se houver mais assets que bacias, assume-se um asset por ano/bacia.
+    print("ESTRATÉGIA: Verificação por assets anuais individuais.")
     filtrarFC = False
+else:
+    # Caso contrário, assume-se um único asset consolidado por bacia.
+    print("ESTRATÉGIA: Verificação por asset único de bacia (filtrando por ano).")
 
+# Limpa a lista da memória, pois não será mais usada
 del list_idassets
 
+# Loop principal para executar a verificação em cada bacia
 for ii, _nbacia in enumerate(nameBacias[:]):
-    print(f" # {ii} processing basin {_nbacia}")
+    print(f"\n# {ii} Verificando a bacia: {_nbacia}")
     if filtrarFC:
+        # Chama a função que lê um asset único e filtra por ano
         reviewer_samples_byFC(param['asset_sample_rev'], _nbacia, listYears)
     else:
+        # Chama a função que lê um asset para cada ano
         reviewer_samples_byYear(param['asset_sample_rev'], _nbacia, listYears)

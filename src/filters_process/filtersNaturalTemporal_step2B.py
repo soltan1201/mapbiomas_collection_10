@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/python
 # -*- coding: utf-8 -*-
 
 '''
@@ -9,8 +9,6 @@
 
 import ee
 import os 
-import time
-import copy
 import sys
 from pathlib import Path
 import collections
@@ -119,18 +117,6 @@ class processo_filterTemporal(object):
         return lsBandAnos[inicio:fim]
 
     #### https://code.earthengine.google.com/1f9dd3ab081d243fa9d7962e06348579            
-    # # a imagem já vem com a janela certa de bandas 
-    # def mask_of_years (self, valor_cc, imagem, listaBND):
-    #     imagem = ee.Image(imagem)
-    #     windows =  len(listaBND)
-    #     mmask = imagem.select([0]).eq(valor_cc)
-    #     maskCount = imagem.select(listaBND[1:-1]).reduce(ee.Reducer.sum())
-    #     if valor_cc == 1:
-    #         maskCount = maskCount.gt(0)
-    #     else:
-    #         maskCount = maskCount.lt(windows - 2)
-    #     mmask = mmask.And(maskCount).And(imagem.select([windows - 1]).eq(valor_cc))
-    #     return mmask
 
     def mask_of_yearss(self, valor_cc, imagem, listaBND):
         """Creates a binary mask based on band values meeting specific conditions.

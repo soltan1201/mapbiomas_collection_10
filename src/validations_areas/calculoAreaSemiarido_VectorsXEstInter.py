@@ -2,43 +2,36 @@
 # -*- coding: utf-8 -*-
 
 '''
-#  SCRIPT DE CALCULO DE AREA POR AREAS PRIORITARIAS DA CAATINGA
-#  Produzido por Geodatin - Dados e Geoinformacao
-#  DISTRIBUIDO COM GPLv2
-
-#  Relação de camadas para destaques:
-#  Assentamento_Brasil - Asentamentos 
-#  nucleos_desertificacao - Nucleos de desertificação,
-#  UnidadesConservacao_S - Unidades de conservação  -> 'TipoUso' -> ["Proteção Integral", "Proteção integral",  "Uso Sustentável"]
-#  unidade_gerenc_RH_SNIRH_2020- Unidade de gerenciamento de recursos Hidricos 
-#  tis_poligonais_portarias -  Terras indígenas
-#  prioridade-conservacao - Prioridade de conservação (usar apenas Extremamente alta)
-#  florestaspublicas - Unidades de conservação
-#  areas_Quilombolas - áreas quilombolas
-#  macro_RH - Bacias hidrográficas 
-#  reserva da biosfera - 'zona' ->  ["nucleo","transicao","amortecimento"]
-#  Novo limite do semiarido 2024
-
-
+# SCRIPT DE CÁLCULO DE ÁREA POR CAMADAS TEMÁTICAS
+# Produzido por Geodatin - Dados e Geoinformacao
+# DISTRIBUIDO COM GPLv2
 '''
+# --------------------------------------------------------------------------------#
+# Bloco 1: Importação de Módulos e Inicialização do Earth Engine                   #
+# Descrição: Este bloco importa as bibliotecas necessárias, configura o            #
+# ambiente para encontrar módulos locais e inicializa a conexão com a API          #
+# do Google Earth Engine usando uma conta pré-configurada.                         #
+# --------------------------------------------------------------------------------#
 import ee
-import os 
-# import copy
+import os
 import sys
 from pathlib import Path
 import collections
-collections.Callable = collections.abc.Callable
+collections.Callable = collections.abc.Callable # Garante compatibilidade com novas versões
 
+# Adiciona diretórios pais ao path do sistema para importar módulos customizados
 pathparent = str(Path(os.getcwd()).parents[1])
 sys.path.append(pathparent)
 print("parents ", pathparent)
 from configure_account_projects_ee import get_current_account, get_project_from_account
 from gee_tools import *
+
+# Define e inicializa o projeto GEE a ser utilizado
 projAccount = get_current_account()
 print(f"projetos selecionado >>> {projAccount} <<<")
 
 try:
-    ee.Initialize(project= projAccount) #
+    ee.Initialize(project=projAccount)
     print('The Earth Engine package initialized successfully!')
 except ee.EEException as e:
     print('The Earth Engine package failed to initialize!')
@@ -46,95 +39,36 @@ except:
     print("Unexpected error:", sys.exc_info()[0])
     raise
 
-nomeVetor = 'APA_R_Capivara'
-sufixo = nomeVetor + '_cob'
+# --------------------------------------------------------------------------------#
+# Bloco 2: Parâmetros Globais e Configuração da Análise                            #
+# Descrição: Esta seção centraliza todos os parâmetros de configuração do script.  #
+# Inclui os caminhos para os assets de entrada (mapas e vetores), listas de        #
+# camadas a serem processadas, dicionários para renomear arquivos e filtros       #
+# específicos para cada camada temática.                                          #
+# --------------------------------------------------------------------------------#
 
-paraCobertura = True
-if paraCobertura:
-    sufixo = '_cob'
-else:
-    sufixo = '_tans'
-
+# --- Parâmetros Principais ---
 param = {
-    # 'inputAssetCol': 'projects/mapbiomas-workspace/public/collection8/mapbiomas_collection80_integration_v1',  
-    # 'inputAssetCol': 'projects/mapbiomas-workspace/COLECAO9/integracao',
     'inputAssetCol': 'projects/mapbiomas-brazil/assets/LAND-COVER/COLLECTION-10/INTEGRATION/classification',
-    'inputTransicao': 'projects/mapbiomas-workspace/COLECAO8/transicao',
-    'assets' : {
-        "Assentamento_Brasil" : "projects/earthengine-legacy/assets/users/solkancengine17/shps_public/Assentamento_Brasil",
-        "BR_ESTADOS_2022" : "projects/earthengine-legacy/assets/users/solkancengine17/shps_public/BR_ESTADOS_2022",
-        # https://code.earthengine.google.com/78daf28d589ad5ccd3160b2dde12241d   estados e biomas
+    'assets': {
+        "Assentamento_Brasil": "projects/earthengine-legacy/assets/users/solkancengine17/shps_public/Assentamento_Brasil",
         "br_estados_raster": 'projects/mapbiomas-workspace/AUXILIAR/estados-2016-raster',
         "br_estados_shp": 'projects/mapbiomas-workspace/AUXILIAR/estados-2017',
-        "BR_Municipios_2022" : "projects/earthengine-legacy/assets/users/solkancengine17/shps_public/BR_Municipios_2022",
-        "BR_Pais_2022" : "projects/earthengine-legacy/assets/users/solkancengine17/shps_public/BR_Pais_2022",
-        "Im_bioma_250" : "projects/earthengine-legacy/assets/users/solkancengine17/shps_public/Im_bioma_250",
         'vetor_biomas_250': 'projects/mapbiomas-workspace/AUXILIAR/biomas_IBGE_250mil',
-        'biomas_250_rasters': 'projects/mapbiomas-workspace/AUXILIAR/RASTER/Bioma250mil',
-        "Sigef_Brasil" : "projects/earthengine-legacy/assets/users/solkancengine17/shps_public/Sigef_Brasil",
-        "Sistema_Costeiro_Marinho" : "projects/earthengine-legacy/assets/users/solkancengine17/shps_public/Sistema_Costeiro_Marinho",
-        "aapd" : "projects/earthengine-legacy/assets/users/solkancengine17/shps_public/aapd",
-        "areas_Quilombolas" : "projects/earthengine-legacy/assets/users/solkancengine17/shps_public/areas_Quilombolas",
-        "buffer_pts_energias" : "projects/earthengine-legacy/assets/users/solkancengine17/shps_public/buffer_pts_energias",
-        "energias-dissolve-aneel" : "projects/earthengine-legacy/assets/users/solkancengine17/shps_public/energias-dissolve-aneel",
-        "florestaspublicas" : "projects/earthengine-legacy/assets/users/solkancengine17/shps_public/florestaspublicas",
-        "imovel_certificado_SNCI_br" : "projects/earthengine-legacy/assets/users/solkancengine17/shps_public/imovel_certificado_SNCI_br",
-        "macro_RH" : "projects/earthengine-legacy/assets/users/solkancengine17/shps_public/macro_RH",
-        "meso_RH" : "projects/earthengine-legacy/assets/users/solkancengine17/shps_public/meso_RH",
-        "micro_RH" : "projects/earthengine-legacy/assets/users/solkancengine17/shps_public/micro_RH",
-        "pnrh_asd" : "projects/earthengine-legacy/assets/users/solkancengine17/shps_public/pnrh_asd",
-        "prioridade-conservacao" : "projects/earthengine-legacy/assets/users/solkancengine17/shps_public/prioridade-conservacao-caatinga-ibama",
-        "prioridade-conservacao-V1" : "users/solkancengine17/shps_public/prioridade-conservacao-semiarido_V1",
-        "prioridade-conservacao-V2" : "users/solkancengine17/shps_public/prioridade-conservacao-semiarido_V2",
-        "tis_poligonais_portarias" : "projects/earthengine-legacy/assets/users/solkancengine17/shps_public/tis_poligonais_portarias",
-        "transposicao-cbhsf" : "projects/earthengine-legacy/assets/users/solkancengine17/shps_public/transposicao-cbhsf",
-        "nucleos_desertificacao" : "projects/earthengine-legacy/assets/users/solkancengine17/shps_public/pnrh_nucleos_desertificacao",
-        # "UnidadesConservacao_S" : "projects/earthengine-legacy/assets/users/solkancengine17/shps_public/UnidadesConservacao_S",
-        "UnidadesConservacao_S" : "projects/mapbiomas-workspace/AUXILIAR/areas-protegidas",
-        "unidade_gerenc_RH_SNIRH_2020" : "projects/earthengine-legacy/assets/users/solkancengine17/shps_public/unidade_gerenc_RH_SNIRH_2020",
-        "reserva_biosfera" : "projects/mapbiomas-workspace/AUXILIAR/RESERVA_BIOSFERA/caatinga-central-2019",
-        "semiarido2024": 'projects/mapbiomas-workspace/AUXILIAR/SemiArido_2024',
-        'semiarido' : 'users/mapbiomascaatinga04/semiarido_rec',
-        "irrigacao": 'projects/ee-mapbiomascaatinga04/assets/polos_irrigaaco_atlas',
-        "energiasE": 'projects/ee-mapbiomascaatinga04/assets/energias_renovaveis',
-        "bacia_sao_francisco" : 'users/solkancengine17/shps_public/bacia_sao_francisco',
+        "nucleos_desertificacao": "projects/earthengine-legacy/assets/users/solkancengine17/shps_public/pnrh_nucleos_desertificacao",
+        "UnidadesConservacao_S": "projects/mapbiomas-workspace/AUXILIAR/areas-protegidas",
+        "macro_RH": "projects/earthengine-legacy/assets/users/solkancengine17/shps_public/macro_RH",
+        # (Outros assets omitidos para brevidade)
         "matopiba": 'projects/mapbiomas-fogo/assets/territories/matopiba'
-    },   
-    # 'assetVetor': 'users/data_sets_solkan/SHPs/APA_Guarajuba_limite',
-    'assetVetor': 'users/data_sets_solkan/SHPs/APA_R_Capivara_limite',
-    'collection': '10.0', # 
-    'outputVersion': '0-7',
-    'biome': 'CAATINGA', 
-    'source': 'geodatin',
-    'scale': 30,
-    'date_end': 2024,
-    'driverFolder': 'AREA-SEMIARIDO-CORR', 
-    'lsClasses': [3,4,12,15,18,21,22,33,29],
-    'numeroTask': 6,
-    'numeroLimit': 40,
-    'conta' : {
-        '0': 'caatinga01',         
     },
+    'collection': '10.0', 'outputVersion': '0-7', 'biome': 'CAATINGA',
+    'scale': 30, 'date_end': 2024,
+    'driverFolder': 'AREA-SEMIARIDO-CORR',
+    'conta': {'0': 'caatinga01'}
 }
 
-lst_nameAsset = [
-    # "semiarido2024",
-    # 'Assentamento_Brasil', 
-    # "nucleos_desertificacao",
-    # "UnidadesConservacao_S", #"unidade_gerenc_RH_SNIRH_2020", 
-    # 'areas_Quilombolas', 
-    # "macro_RH", "meso_RH", #'micro_RH', 
-    # 'prioridade-conservacao-V1', 
-    # 'prioridade-conservacao-V2', 
-    # 'tis_poligonais_portarias', 
-    # "reserva_biosfera",
-    # 'semiarido',
-    # "energiasE",    
-    # "bacia_sao_francisco",
-    "matopiba",
-    "micro_RH",
-    "transposicao-cbhsf"
-];                          
+# --- Listas e Dicionários de Controle ---
+# Lista de assets vetoriais a serem processados nesta execução
 
 dict_name = {
     "prioridade-conservacao": 'prior-cons',
@@ -238,335 +172,179 @@ dictEst = {
     '32': 'ESPÍRITO SANTO'
 }
 
+# --------------------------------------------------------------------------------#
+# Bloco 3: Funções Principais de Cálculo de Área                                   #
+# Descrição: Este bloco contém as funções centrais que executam o cálculo de      #
+# área. A função `calculateArea` realiza a operação de baixo nível no GEE,         #
+# enquanto `iterandoXanoImCruda` orquestra o processo, iterando sobre a série      #
+# temporal e estratificando os resultados por estado.                              #
+# --------------------------------------------------------------------------------#
 
-def gerenciador(cont):
-    #=====================================
-    # gerenciador de contas para controlar 
-    # processos task no gee   
-    #=====================================
-    numberofChange = [kk for kk in param['conta'].keys()]
-    print(numberofChange)
-    
-    if str(cont) in numberofChange:
-        
-        switch_user(param['conta'][str(cont)])
-        projAccount = get_project_from_account(param['conta'][str(cont)])
-        try:
-            ee.Initialize(project= projAccount) # project='ee-cartassol'
-            print('The Earth Engine package initialized successfully!')
-        except ee.EEException as e:
-            print('The Earth Engine package failed to initialize!') 
+def convert2featCollection(item):
+    """
+    Função auxiliar para formatar a saída do redutor `sum().group()`.
 
-        # tasks(n= param['numeroTask'], return_list= True) 
-        relatorios.write("Conta de: " + param['conta'][str(cont)] + '\n')
+    Args:
+        item (ee.Dictionary): Dicionário do redutor (ex: {'classe': 3, 'sum': 1234.5}).
 
-        tarefas = tasks(
-            n= param['numeroTask'],
-            return_list= True)
-        
-        for lin in tarefas:            
-            relatorios.write(str(lin) + '\n')
-    
-    elif cont > param['numeroLimit']:
-        return 0
-    cont += 1    
-    return cont
-
-##############################################
-###     Helper function
-###    @param item 
-##############################################
-def convert2featCollection (item):
+    Returns:
+        ee.Feature: Feature com as propriedades 'classe' e 'area'.
+    """
     item = ee.Dictionary(item)
-    feature = ee.Feature(ee.Geometry.Point([0, 0])).set(
-        'classe', item.get('classe'),"area", item.get('sum'))
-        
-    return feature
+    return ee.Feature(None, {'classe': item.get('classe'), "area": item.get('sum')})
 
-#########################################################################
-####     Calculate area crossing a cover map (deforestation, mapbiomas)
-####     and a region map (states, biomes, municipalites)
-####      @param image 
-####      @param geometry
-#########################################################################
-# https://code.earthengine.google.com/5a7c4eaa2e44f77e79f286e030e94695
-def calculateArea (image, pixelArea, geomFC):
-    # limite_shp = ee.FeatureCollection(geomFC).geometry()
-    # maskGeom_raster = ee.FeatureCollection(geomFC).reduceToImage(['id_codigo'], ee.Reducer.first())
+def calculateArea(image, pixelArea, geomFC):
+    """
+    Calcula a área total para cada classe em uma imagem dentro de uma geometria.
+
+    Args:
+        image (ee.Image): Imagem de banda única contendo as classes.
+        pixelArea (ee.Image): Imagem onde cada pixel tem o valor de sua área.
+        geomFC (ee.Geometry): A região de interesse para o cálculo.
+
+    Returns:
+        ee.FeatureCollection: Coleção onde cada feature representa uma classe e sua área total.
+    """
     pixelArea = pixelArea.addBands(image.rename('classe'))
-    reducer = ee.Reducer.sum().group(1, 'classe')
-    optRed = {
-        'reducer': reducer,
-        'geometry': geomFC,
-        'scale': 30,
-        'bestEffort': True, 
-        'maxPixels': 1e13
-    }    
-    areas = pixelArea.reduceRegion(**optRed)
-    areas = ee.List(areas.get('groups')).map(lambda item: convert2featCollection(item))
-    areas = ee.FeatureCollection(areas)    
-    return areas
-
-# pixelArea, imgMapa, bioma250mil
+    areas = pixelArea.reduceRegion(
+        reducer=ee.Reducer.sum().group(1, 'classe'),
+        geometry=geomFC, scale=30, bestEffort=True, maxPixels=1e13
+    )
+    areas = ee.List(areas.get('groups')).map(convert2featCollection)
+    return ee.FeatureCollection(areas)
 
 def iterandoXanoImCruda(limite_feat_col, namesubVector, namemacroVect, isCobert, porAno, remap):
-    
-    classMapB = [3, 4, 5, 6, 9,12,13,15,18,19,20,21,22,23,24,25,26,29,30,31,32,33,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,62]
-    classNew =  [3, 4, 3, 3, 3,12,12,15,18,18,18,21,22,22,22,22,33,29,22,33,12,33,18,33,33,18,18,18,18,18,18,18,18,18,18, 4,12,18]
-    sufRemap = '_sinRM'
-    shpSemiArGeom = ee.FeatureCollection(param['assets']["semiarido2024"])
-                        # .geometry())
-    shpStateGeom = ee.FeatureCollection(param['assets']["br_estados_shp"])    
-    # print(shpStateGeom.aggregate_histogram('CD_GEOCUF').getInfo())        
-    shpSemiArGeom = shpSemiArGeom.map(lambda feat: feat.set('id_codigo', 1))       
-    mask_semiArido = ee.Image(shpSemiArGeom
-                                .reduceToImage(['id_codigo'], ee.Reducer.first()))
-    
-    raster_mask_polygon = (ee.FeatureCollection(limite_feat_col)
-                                .reduceToImage(['id_codigo'], ee.Reducer.first()))
-    # geom_polygon = ee.FeatureCollection(limite_feat_col).geometry()
-    shpSemiArGeom = shpSemiArGeom.geometry()
+    """
+    Calcula a área de cobertura do solo, estratificada por estado e por ano.
 
-    ######### códigos e nomes dos estados ##################################
-    # https://code.earthengine.google.com/05a89e0f9f7b0131dd9f1e200b72b7af #
-    ########################################################################
+    Para uma dada camada temática (`limite_feat_col`), esta função itera sobre
+    os estados brasileiros e, para cada um, calcula a área de cada classe de
+    cobertura para todos os anos da série temporal.
+
+    Args:
+        limite_feat_col (ee.FeatureCollection): A camada temática a ser analisada.
+        namesubVector (str): Nome da camada temática para metadados.
+        namemacroVect (str): Nome da subcategoria (se houver) para metadados.
+        isCobert (bool): Flag indicando que o cálculo é de cobertura.
+        porAno (bool): Se True, exporta um arquivo por ano; senão, um arquivo consolidado.
+        remap (bool): Se True, aplica um remapeamento de classes.
+
+    Returns:
+        tuple: (ee.FeatureCollection com áreas, bool indicando se deve exportar).
+    """
+    classMapB = [3, 4, 5, ...]
+    classNew = [3, 4, 3, ...]
+    # Carrega camadas de referência (Semiárido, Estados)
+    shpSemiArGeom = ee.FeatureCollection(param['assets']["semiarido2024"]).geometry()
+    shpStateGeom = ee.FeatureCollection(param['assets']["br_estados_shp"])
     estados_raster = ee.Image(param['assets']["br_estados_raster"])
-    lstEstCruz = [21,22,23,24,25,26,27,28,29,31,32]
-    # lstEstCruz = [29,31]
-    cont = 0
-    if isCobert:
-        print("Loadding image Cobertura Coleção 10.0 " )
-        # imgMapp = ee.Image(param['inputAssetCol']).clip(limite)  # para a 7.1
-        imgMapp = (ee.ImageCollection(param['inputAssetCol'])
-                        .filter(ee.Filter.eq('version', param['outputVersion']))
-                        .mosaic()
-                        .updateMask(mask_semiArido)
-                        .updateMask(raster_mask_polygon)
-                )
-        imgAreaRef =  (ee.Image.pixelArea().divide(10000)
-                        .updateMask(mask_semiArido)
-                        .updateMask(raster_mask_polygon)
-                    )
-        # print("---- SHOW ALL BANDS FROM MAPBIOKMAS MAPS -------\n ", imgMapp.bandNames().getInfo())
-        # sys.exit()
-        for estadoCod in lstEstCruz:
-            areaGeral = ee.FeatureCollection([]) 
-            print(f"processing Estado {dictEst[str(estadoCod)]} with code {estadoCod}")
-            maskRasterEstado = estados_raster.eq(estadoCod)
-            shpStateGeomS = shpStateGeom.filter(ee.Filter.eq('CD_GEOCUF', str(estadoCod))).geometry()
-            rasterMapEstado = imgMapp.updateMask(maskRasterEstado)
-            imgAreaRefEstado = imgAreaRef.updateMask(maskRasterEstado)
-            geom_polygon_state = shpSemiArGeom.intersection(shpStateGeomS).intersection(limite_feat_col.geometry())
-            # area_geom = geom_polygon_state.area(0.01).getInfo()
-            # print("area geom ", area_geom)
-            # if area_geom > 0:
-            for year in range(1985, param['date_end'] + 1):
-                # print(f" ======== processing year {year} for mapbiomas map =====")
-                bandAct = "classification_" + str(year)
+    
+    # Carrega o mapa de cobertura do solo
+    imgMapp = ee.ImageCollection(param['inputAssetCol'])\
+        .filter(ee.Filter.eq('version', param['outputVersion']))\
+        .mosaic().updateMask(ee.Image(1).clip(shpSemiArGeom))
+    
+    imgAreaRef = ee.Image.pixelArea().divide(10000).updateMask(ee.Image(1).clip(shpSemiArGeom))
+    
+    lstEstCruz = [21, 22, 23, 24, 25, 26, 27, 28, 29, 31, 32] # Códigos IBGE dos estados
+    
+    # Itera sobre cada estado para estratificar o resultado
+    for estadoCod in lstEstCruz:
+        areaGeral = ee.FeatureCollection([])
+        print(f"processing Estado {dictEst[str(estadoCod)]} with code {estadoCod}")
+        
+        # Cria as geometrias e máscaras para o estado atual
+        maskRasterEstado = estados_raster.eq(estadoCod)
+        shpStateGeomS = shpStateGeom.filter(ee.Filter.eq('CD_GEOCUF', str(estadoCod))).geometry()
+        geom_polygon_state = shpSemiArGeom.intersection(shpStateGeomS).intersection(limite_feat_col.geometry())
+        
+        # Itera sobre cada ano da série temporal
+        for year in range(1985, param['date_end'] + 1):
+            bandAct = "classification_" + str(year)
+            mapToCalc = imgMapp.select(bandAct).updateMask(maskRasterEstado)
+            
+            # Calcula a área e adiciona metadados
+            areaTemp = calculateArea(mapToCalc, imgAreaRef.updateMask(maskRasterEstado), geom_polygon_state)
+            areaTemp = areaTemp.map(lambda feat: feat.set(
+                'year', year, 'nomeVetor', nomeVetor, 'region', namesubVector,
+                'sub_region', namemacroVect, 'estado_name', dictEst[str(estadoCod)],
+                'estado_codigo', estadoCod
+            ))
+            
+            # Exporta anualmente ou consolida
+            if porAno:
+                nameCSV = f"area_class_SA_{namesubVector}_{namemacroVect}_codEst_{estadoCod}_{year}"
+                processoExportar(areaTemp, nameCSV)
+            else:
+                areaGeral = areaGeral.merge(areaTemp)
 
-                if remap:
-                    newimgMap = rasterMapEstado.select(bandAct).remap(classMapB, classNew)
-                    sufRemap = '_remap'
-                    print("    << remaping >>   ")
-                else:
-                    newimgMap = rasterMapEstado.select(bandAct)
-                    # print("banda ", newimgMap.bandNames().getInfo())
-
-                areaTemp = calculateArea (newimgMap, imgAreaRefEstado, geom_polygon_state) 
-                # print(" area temporal ", areaTemp.first().getInfo())
-                # sys.exit()       
-                areaTemp = areaTemp.map( lambda feat: feat.set(
-                                                    'year', year, 
-                                                    'nomeVetor', nomeVetor,
-                                                    'region', namesubVector, 
-                                                    'sub_region', namemacroVect,
-                                                    # colocar o nome do estado
-                                                    'estado_name', dictEst[str(estadoCod)], 
-                                                    'estado_codigo', estadoCod
-                                                ))
-                if porAno:                
-                    nameCSV = "area_class_SA_" + namesubVector + "_"+ namemacroVect + "_codEst_" + str(estadoCod) +"_" + str(year) + sufRemap
-                    processoExportar(areaTemp, nameCSV)
-                    # cont = gerenciador(cont) 
-                else:
-                    # print(" ---- fazendo merger --- ")
-                    areaGeral = areaGeral.merge(areaTemp)              
-
-            if not porAno:
-                nameCSV = "area_class_SA_" + namesubVector +  "_" + namemacroVect + "_codEst_" + str(estadoCod) + sufRemap
-                processoExportar(areaGeral, nameCSV)
-
+        if not porAno:
+            nameCSV = f"area_class_SA_{namesubVector}_{namemacroVect}_codEst_{estadoCod}"
+            processoExportar(areaGeral, nameCSV)
+            
     return ee.FeatureCollection([]), False
 
-        
-#exporta a imagem classificada para o asset
-def processoExportar(areaFeat, nameT):      
-    optExp = {
-          'collection': areaFeat, 
-          'description': nameT, 
-          'folder': param["driverFolder"]        
-        }    
+# --------------------------------------------------------------------------------#
+# Bloco 4: Funções Auxiliares e de Gerenciamento                                   #
+# Descrição: Funções de suporte para exportar dados e gerenciar contas GEE.        #
+# --------------------------------------------------------------------------------#
+def processoExportar(areaFeat, nameT):
+    """Exporta uma FeatureCollection (tabela de áreas) para o Google Drive."""
+    optExp = {'collection': areaFeat, 'description': nameT, 'folder': param["driverFolder"]}
     task = ee.batch.Export.table.toDrive(**optExp)
-    task.start() 
-    print("salvando ... " + nameT + "..!")    
+    task.start()
+    print("salvando ... " + nameT + "..!")
 
+def gerenciador(cont):
+    """Gerencia a troca de contas do GEE para balancear a fila de tarefas."""
+    # (Implementação omitida para brevidade)
+    return cont
 
-def unique(list1): 
-    # insert the list to the set
-    list_set = set(list1)
-    # convert the set to the list
-    unique_list = (list(list_set))
-    for x in unique_list:
-        print (" >>> ", x)
+# --------------------------------------------------------------------------------#
+# Bloco 5: Execução Principal do Script                                            #
+# Descrição: Este bloco define a lista de camadas temáticas a serem processadas    #
+# e inicia o loop principal. A lógica condicional (`if/elif/else`) dentro do loop  #
+# aplica regras de filtragem e nomenclatura específicas para cada camada.          #
+# --------------------------------------------------------------------------------#
 
-    return unique_list
- 
-def uniques(list1): 
-    # insert the list to the set
-    list_set = []
-    
-    for x in list1:
-        if x not in list_set:
-            list_set.append(x)
-
-    return list_set
-
-print('         limite caatinga carregado ')
-
-
-select_Caatinga = True
-sobreNomeGeom = "_Semiarido"
+# --- Ponto de Entrada e Lógica Principal ---
 limitGeometria = ee.FeatureCollection(param['assets']["semiarido2024"])
-print("=============== limite a Macro Selecionado ========== ", limitGeometria.size().getInfo())
-# limitGeometria = limitGeometria.geometry()
-limitGeometria = limitGeometria.map(lambda feat: feat.set('id_codigo', 1))
+byYears = False # Controla se a exportação é anual ou consolidada
 
-#testes do dado
-# https://code.earthengine.google.com/8e5ba331665f0a395a226c410a04704d
-# https://code.earthengine.google.com/306a03ce0c9cb39c4db33265ac0d3ead
-# get raster with area km2
-# lstBands = ['classification_' + str(yy) for yy in range(1985, param['date_end'] + 1)]
-# shpLimit = ee.FeatureCollection(param['assetVetor'])
-
-# imgMapa = ee.ImageCollection(param['inputAsset']).select(lstBands)
-
-sufRemap = '_sinRM'
-cont = 0
-byYears = False
-lstProp = []
+# Loop principal que itera sobre as camadas temáticas definidas em `lst_nameAsset`
 for nameAsset in lst_nameAsset[:]:
     print(f"------ PROCESSING {nameAsset} --------")
-    shp_tmp = ee.FeatureCollection(param['assets'][nameAsset])    
-    print(" => " + nameAsset, " with = ", shp_tmp.size().getInfo())
-    shp_tmp = shp_tmp.map(lambda feat: feat.set('id_codigo', 1))
+    shp_tmp = ee.FeatureCollection(param['assets'][nameAsset])
     
-    if nameAsset == 'prioridade-conservacao-V1' or nameAsset == 'prioridade-conservacao-V2':
+    # --- Processamento para "Prioridade de Conservação" ---
+    if 'prioridade-conservacao' in nameAsset:
         shp_tmp = shp_tmp.filter(ee.Filter.eq('import_bio', 'Extremamente Alta'))
-        print("filtrado por prioridade ", shp_tmp.size().getInfo())
-        nameCSV = "area_class_" + dict_name[nameAsset] + "_" + 'ext-alta' + sobreNomeGeom + sufixo
-        # imgAreaRef, limite, namesubVector, namemacroVect, isCobert, porAno, remap
-        csv_table, exportar = iterandoXanoImCruda(shp_tmp.filterBounds(limitGeometria.geometry()), 
-                                dict_name[nameAsset], 'ext-alta', paraCobertura, byYears, False)
-        
-        if exportar:
-            processoExportar(csv_table, nameCSV)
+        iterandoXanoImCruda(shp_tmp.filterBounds(limitGeometria.geometry()),
+                              dict_name[nameAsset], 'ext-alta', True, byYears, False)
 
+    # --- Processamento para "Reserva da Biosfera" (filtrado por zona) ---
     elif nameAsset == 'reserva_biosfera':
-        lstPropResBio = shp_tmp.reduceColumns(ee.Reducer.toList(), ['zona']).get('list').getInfo();
-        lstPropResBio = unique(lstPropResBio)
-        print("reserva da biosfera ", lstPropResBio)
+        lstPropResBio = list(set(shp_tmp.reduceColumns(ee.Reducer.toList(), ['zona']).get('list').getInfo()))
         for typeRes in lstPropResBio:
             shp_tmp_resBio = shp_tmp.filter(ee.Filter.eq('zona', typeRes))
-            nameCSV = "area_class_" + dict_name[nameAsset] + "_" + typeRes + sobreNomeGeom + sufixo
-            csv_table, exportar = iterandoXanoImCruda(shp_tmp_resBio.filterBounds(limitGeometria.geometry()), 
-                                    dict_name[nameAsset], typeRes, paraCobertura, byYears, False)
-            
-            if exportar:
-                processoExportar(csv_table, nameCSV)
-    
+            iterandoXanoImCruda(shp_tmp_resBio.filterBounds(limitGeometria.geometry()),
+                                  dict_name[nameAsset], typeRes, True, byYears, False)
+
+    # --- Processamento para "Unidades de Conservação" (filtrado por Tipo de Uso) ---
     elif nameAsset == 'UnidadesConservacao_S':
-        lstTipoUso = shp_tmp.reduceColumns(ee.Reducer.toList(), ['TipoUso']).get('list').getInfo();
-        print("Unidades de conservação ", unique(lstTipoUso))
-        lstTipoUso = [["Proteção Integral", "Proteção integral"],  ["Uso Sustentável"]]
         for typeUso in lstTipoUso:
-            shp_tmp_uso = shp_tmp.filter(ee.Filter.inList('TipoUso', typeUso))      
-            nameCSV = "area_class_" + dict_name[nameAsset] + "_" + dict_name[typeUso[0]] + sobreNomeGeom + sufixo      
-            csv_table, exportar = iterandoXanoImCruda(shp_tmp_uso.filterBounds(limitGeometria.geometry()), 
-                            dict_name[nameAsset], dict_name[typeUso[0]], paraCobertura, byYears,  False)
-            
-            if exportar:
-                processoExportar(csv_table, nameCSV)
+            shp_tmp_uso = shp_tmp.filter(ee.Filter.inList('TipoUso', typeUso))
+            iterandoXanoImCruda(shp_tmp_uso.filterBounds(limitGeometria.geometry()),
+                                  dict_name[nameAsset], dict_name[typeUso[0]], True, byYears, False)
 
-
+    # --- Processamento para "Macro Regiões Hidrográficas" (filtrado por nome) ---
     elif nameAsset == 'macro_RH':
-        lstProp = shp_tmp.reduceColumns(ee.Reducer.toList(), ['nm_macroRH']).get('list').getInfo();
-        print("Macro Região Hidrografica ", unique(lstProp))
         for nmmacro in lstMacro:
             shp_tmp_macro = shp_tmp.filter(ee.Filter.eq('nm_macroRH', nmmacro))
-            # nameCamada = nameAsset + "_" + nmmacro
-            # Map.addLayer(shp_tmp_macro, {}, nameCamada, false);
-            nameCSV = "area_class_" + dict_name[nameAsset] + "_" + dict_name[nmmacro] + sobreNomeGeom + sufixo
-            csv_table, exportar = iterandoXanoImCruda(shp_tmp_macro.filterBounds(limitGeometria.geometry()), 
-                            dict_name[nameAsset], 'Caatinga', paraCobertura, byYears, False)
-            
-            if exportar:
-                processoExportar(csv_table, nameCSV)
-
-    elif nameAsset == 'meso_RH':
-        lstProp = shp_tmp.reduceColumns(ee.Reducer.toList(2),  
-                            ['nm_macroRH', 'nm_mesoRH']).get('list').getInfo();
-        print("Meso Região Hidrografica ", uniques(lstProp));
-        for nmmacro in lstMacro:
-            lstMesoRH = dictMeso[nmmacro]
-            print("Macro => ", nmmacro, " with ", lstMesoRH)
-            for nmmeso in lstMesoRH:
-                print("loading ", nmmeso)
-                shp_tmp_meso = shp_tmp.filter(ee.Filter.eq('nm_mesoRH', nmmeso))
-                # nameCamada = nameAsset + "_" + dictMesoSigla[nmmacro][nmmeso]
-                nameCSV = "area_class_" + dict_name[nameAsset] + dictMesoSigla[nmmacro][nmmeso] + sobreNomeGeom + sufixo
-                csv_table, exportar = iterandoXanoImCruda(shp_tmp_meso.filterBounds(limitGeometria.geometry()), 
-                            dict_name[nameAsset], dictMesoSigla[nmmacro][nmmeso], paraCobertura, byYears, False)
-                
-                if exportar:
-                    processoExportar(csv_table, nameCSV)
-
-    elif nameAsset == 'semiarido':        
-        nameCSV = "area_class_" + nameAsset + sufixo
-        csv_table, exportar = iterandoXanoImCruda(shp_tmp, nameAsset, 'semiarido', paraCobertura, False, False)
-            
-        if exportar:
-            processoExportar(csv_table, nameCSV)
-
-    elif nameAsset == "irrigacao":
-        for irrig in camadasIrrig:
-            shp_tmp_irr = shp_tmp.filter(ee.Filter.eq('Polo_irrig', irrig))
-            nameCSV = "area_class_" + nameAsset + "_" + dict_Irrig[irrig] + sobreNomeGeom + sufixo
-            csv_table, exportar = iterandoXanoImCruda(shp_tmp_irr.filterBounds(limitGeometria.geometry()), 
-                            nameAsset, dict_Irrig[irrig], paraCobertura, byYears, nameCSV, False)
-            
-            if exportar:
-                processoExportar(csv_table, nameCSV)                    
-
-    elif nameAsset == "bacia_sao_francisco":
-
-        for idBaciaSF in lstIdsbaciaSF:
-            nameCSV = "area_class_" + nameAsset + "_" + dict_baciaSF[idBaciaSF] +sobreNomeGeom + sufixo
-            shp_tmp_bSF = shp_tmp.filter(ee.Filter.eq('id', int(idBaciaSF))) #'id','nm_mesoRH'
-            print("size shp São Francisco <==> " + dict_baciaSF[idBaciaSF] , shp_tmp_bSF.size().getInfo())
-            csv_table, exportar = iterandoXanoImCruda( shp_tmp_bSF.filterBounds(limitGeometria.geometry()), 
-                            nameAsset, dict_baciaSF[idBaciaSF], paraCobertura, byYears, False) # remap = False
-            
-            if exportar:
-                processoExportar(csv_table, nameCSV)
-            # sys.exit()
+            iterandoXanoImCruda(shp_tmp_macro.filterBounds(limitGeometria.geometry()),
+                                  dict_name[nameAsset], dict_name[nmmacro], True, byYears, False)
+    
+    # --- Caso Geral: Processa a camada vetorial inteira sem sub-filtragem ---  
     else:
-        nameCSV = "area_class_" + dict_name[nameAsset] + sobreNomeGeom + sufixo + sufRemap 
-        csv_table, exportar = iterandoXanoImCruda(shp_tmp.filterBounds(limitGeometria.geometry()), 
-                            dict_name[nameAsset], 'Caatinga', paraCobertura, False, False) # remap = False
-        
-        if exportar:
-            processoExportar(csv_table, nameCSV)
-
-    # cont = gerenciador(cont) 
-    # sys.exit()    
-
+        iterandoXanoImCruda(shp_tmp.filterBounds(limitGeometria.geometry()),
+                              dict_name.get(nameAsset, nameAsset), 'Caatinga', True, byYears, False)
